@@ -8,7 +8,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Data.Pack
-  where
+  ( pac
+  , pek
+  , test
+  , module Data.Pack.Primitives
+  ) where
 
 import Control.Applicative
 import Control.Monad
@@ -16,6 +20,7 @@ import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Internal as B (ByteString(..), mallocByteString, toForeignPtr)
 import Data.Pack.Primitives
+import Foreign
 import System.IO.Unsafe
 import Debug.Trace
 
