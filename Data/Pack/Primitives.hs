@@ -36,18 +36,19 @@ module Data.Pack.Primitives
   , f64host
   , f32be
   , f64be
-  --, bytes
-  --, bytesCopy
+  , bytes
+  , bytesCopy
   --, bytesWhile
   --, remainingBytes
   --, remainingBytesCopy
-  --, storable
+  , storable
+  --, extensible
   --, isolate
   --, anchor
   --, vector
   --, vector'
-  --, pad
-  --, pad0
+  , pad
+  , unused
   --, align
   --, align0
   --, getPosition
@@ -56,19 +57,14 @@ module Data.Pack.Primitives
   ) where
 
 import Control.Applicative
+import Control.Monad
+import Data.ByteString as B (ByteString, copy)
+import qualified Data.ByteString.Internal as B
 import Data.Pack.Endianness
 import Data.Pack.IEEE754
+import Data.Pack.Types
 import Foreign
 
-
-type Packer a = a -> Packet String a
-
-newtype Packet e a = Packet
-	{ unPacket ::
-		( Ptr () -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)
-		, Int -> Int
-		, Ptr () -> Ptr () -> Ptr () -> IO (Ptr ()) )
-	}
 
 -- | A 'Int8' 'Packet'.
 i8 :: Packer Int8
@@ -200,21 +196,61 @@ f64be :: Packer Double
 f64be = simple 8 (wordToDouble.be64Host) (be64Host.doubleToWord)
 {-# INLINE f64be #-}
 
+-- | A strict 'ByteString' 'Packet'.
+bytes :: Int -> Packer ByteString
+bytes n = \bs -> Packet
+  ( \fp btm ptr -> do
+      let ptr' = plusPtr ptr n
+      r <- --if ptr' <= btm
+      --  then Right 
+      --              o <- withForeignPtr fp $ \origPtr -> return (ptr `minusPtr` origPtr)
+      --              return $ B.fromForeignPtr fp offset n
+      --  else
+        return $ Left "not enough bytes." 
+      return (ptr', r)
+  , (+n)
+  , \_ _ ptr -> do
+      let (fp, off, len) = B.toForeignPtr bs
+      withForeignPtr fp $ \ptr' ->
+        B.memcpy (castPtr ptr) (ptr' `plusPtr` off) (fromIntegral len)
+      return (plusPtr ptr n)
+  )
 
+-- | A strict 'ByteString' 'Packet'.
+bytesCopy :: Int -> Packer ByteString
+bytesCopy n = \bs ->
+  case bytes n bs of
+    Packet (get, size, put) -> Packet
+      (\t b p -> fmap (fmap B.copy) <$> get t b p, size, put)
+
+-- | A 'Storable' 'Packet'.
+storable :: Storable a => Packer a
+storable a = simple (sizeOf a) id id a
+{-# INLINE storable #-}
+
+-- | Skip bytes, filling with specified byte.
+pad :: Word8 -> Int -> Packet String ()
+pad filler n = replicateM_ n (u8 filler) -- XXX make this faster
+{-# INLINE pad #-}
+
+-- | Skip bytes, filling with NUL bytes.
+unused :: Int -> Packet String ()
+unused = pad 0
+{-# INLINE unused #-}
 
 simple :: Storable a => Int -> (a -> b) -> (b -> a) -> Packer b
 simple n toHost fromHost = \a ->
 	Packet (peekWith n peek toHost, (+n), pokeWith n poke (fromHost a))
 {-# INLINE simple #-}
 
-peekWith :: Int -> (Ptr a -> IO a) -> (a -> b) -> Ptr () -> Ptr () -> Ptr () -> IO (Ptr (), Either String b)
+peekWith :: Int -> (Ptr a -> IO a) -> (a -> b) -> ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr (), Either String b)
 peekWith n f toHost _ bottom ptr | plusPtr ptr n <= bottom =
 	(plusPtr ptr n,) . Right . toHost <$> f (castPtr ptr)
 peekWith _ _ _ _ _ ptr =
 	return (ptr, Left "not enough bytes.")
 {-# INLINE peekWith #-}
 
-pokeWith :: Int -> (Ptr a -> a -> IO ()) -> a -> Ptr () -> Ptr () -> Ptr () -> IO (Ptr ())
+pokeWith :: Int -> (Ptr a -> a -> IO ()) -> a -> ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr ())
 pokeWith n f a = \_ _ p -> f (castPtr p) a >> return (plusPtr p n)
 {-# INLINE pokeWith #-}
 
