@@ -21,9 +21,11 @@ module Data.Pack.Primitives
   , i16host
   , i32host
   , i64host
+  , iptrsize
   , u16host
   , u32host
   , u64host
+  , uptrsize
   , i16be
   , i32be
   , i64be
@@ -43,17 +45,23 @@ module Data.Pack.Primitives
   --, remainingBytesCopy
   , storable
   --, extensible
-  --, isolate
-  --, anchor
   --, vector
   --, vector'
   , pad
   , unused
   --, align
   --, align0
+  --, isolate
+  --, anchor
   --, getPosition
   --, getTotalSize
-  --, getRemaining
+  , getRemaining
+  --, cString
+  --, cStringLen
+  --, utf8
+  --, utf8Len
+  --, utf16
+  --, utf16Len
   ) where
 
 import Control.Applicative
@@ -116,6 +124,11 @@ i64be :: Packer Int64
 i64be = simple 8 (fromIntegral . be64Host) (be64Host . fromIntegral)
 {-# INLINE i64be #-}
 
+-- | A host pointer-sized 'Int' 'Packet' in the host endianness.
+iptrsize :: Packer Word
+iptrsize a = simple (sizeOf a) id id a
+{-# INLINE iptrsize #-}
+
 -- | A 'Word8' 'Packet'.
 u8 :: Packer Word8
 u8 = simple 1 id id
@@ -166,6 +179,11 @@ u64be :: Packer Word64
 u64be = simple 8 be64Host be64Host
 {-# INLINE u64be #-}
 
+-- | A host pointer-sized 'Word' 'Packet' in the host endianness.
+uptrsize :: Packer Word
+uptrsize a = simple (sizeOf a) id id a
+{-# INLINE uptrsize #-}
+
 -- | A IEEE754-'Float' 'Packet' serialized in little endian.
 f32 :: Packer Float
 f32 = simple 4 (wordToFloat.le32Host) (le32Host.floatToWord)
@@ -198,30 +216,13 @@ f64be = simple 8 (wordToDouble.be64Host) (be64Host.doubleToWord)
 
 -- | A strict 'ByteString' 'Packet'.
 bytes :: Int -> Packer ByteString
-bytes n = \bs -> Packet
-  ( \fp btm ptr -> do
-      let ptr' = plusPtr ptr n
-      r <- --if ptr' <= btm
-      --  then Right 
-      --              o <- withForeignPtr fp $ \origPtr -> return (ptr `minusPtr` origPtr)
-      --              return $ B.fromForeignPtr fp offset n
-      --  else
-        return $ Left "not enough bytes." 
-      return (ptr', r)
-  , (+n)
-  , \_ _ ptr -> do
-      let (fp, off, len) = B.toForeignPtr bs
-      withForeignPtr fp $ \ptr' ->
-        B.memcpy (castPtr ptr) (ptr' `plusPtr` off) (fromIntegral len)
-      return (plusPtr ptr n)
-  )
+bytes n = simpleBS n id id
+{-# INLINE bytes #-}
 
 -- | A strict 'ByteString' 'Packet'.
 bytesCopy :: Int -> Packer ByteString
-bytesCopy n = \bs ->
-  case bytes n bs of
-    Packet (get, size, put) -> Packet
-      (\t b p -> fmap (fmap B.copy) <$> get t b p, size, put)
+bytesCopy n = fmap B.copy . bytes n
+{-# INLINE bytesCopy #-}
 
 -- | A 'Storable' 'Packet'.
 storable :: Storable a => Packer a
@@ -239,18 +240,41 @@ unused = pad 0
 {-# INLINE unused #-}
 
 simple :: Storable a => Int -> (a -> b) -> (b -> a) -> Packer b
-simple n toHost fromHost = \a ->
-	Packet (peekWith n peek toHost, (+n), pokeWith n poke (fromHost a))
+simple = fixedPacket peek poke
 {-# INLINE simple #-}
 
-peekWith :: Int -> (Ptr a -> IO a) -> (a -> b) -> ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr (), Either String b)
-peekWith n f toHost _ bottom ptr | plusPtr ptr n <= bottom =
-	(plusPtr ptr n,) . Right . toHost <$> f (castPtr ptr)
-peekWith _ _ _ _ _ ptr =
-	return (ptr, Left "not enough bytes.")
-{-# INLINE peekWith #-}
+fixedPacket :: (Ptr a -> IO a) -> (Ptr a -> a -> IO ()) -> Int -> (a -> b) -> (b -> a) -> Packer b
+fixedPacket get put n toHost fromHost =
+  dimapP fromHost toHost $ \a -> Packet
+    ( \_ b p -> (plusPtr p n,) <$> checkBdr n b p (get (castPtr p))
+    , (+n)
+    , \_ _ p -> put (castPtr p) a >> return (plusPtr p n))
+{-# INLINE fixedPacket #-}
 
-pokeWith :: Int -> (Ptr a -> a -> IO ()) -> a -> ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr ())
-pokeWith n f a = \_ _ p -> f (castPtr p) a >> return (plusPtr p n)
-{-# INLINE pokeWith #-}
+checkBdr :: Int -> Ptr () -> Ptr () -> IO a -> IO (Either String a)
+checkBdr n bottom ptr f | plusPtr ptr n <= bottom = Right <$> f
+checkBdr _ _ _ _ = return (Left "not enough bytes.")
+{-# INLINE checkBdr #-}
+
+getRemaining :: Packet e Int
+getRemaining = mkInfoPacket $ \_ bottom current ->
+  return (current, Right (minusPtr bottom current))
+{-# INLINE getRemaining #-}
+
+mkInfoPacket :: (ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
+mkInfoPacket f = Packet
+  (f, id, \_ _ p -> return p )
+{-# INLINE mkInfoPacket #-}
+
+simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
+simpleBS n = fixedPacket get put n
+  where
+    get ptr = do
+      fp <- mallocForeignPtrBytes 4 -- XXX
+      offset <- return 0 --withForeignPtr fp $ \origPtr -> return (ptr `minusPtr` origPtr)
+      return $ B.fromForeignPtr fp offset n
+    put ptr bs = do
+      let (fp, off, len) = B.toForeignPtr bs
+      withForeignPtr fp $ \ptr' ->
+        B.memcpy (castPtr ptr) (plusPtr ptr' off) (fromIntegral len)
 

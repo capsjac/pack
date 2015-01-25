@@ -4,8 +4,9 @@
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
 -- Portability : Unknown
---
+-- 
 {-# LANGUAGE CPP #-}
+
 module Data.Pack.Endianness
   ( le16Host
   , le32Host

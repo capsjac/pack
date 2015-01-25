@@ -10,11 +10,11 @@
 -- > pactest = do
 -- >   putStrLn . show $ packing i8 100
 -- >   let i8i8i8 ~(v,w,x) = do -- `~` is important!
--- >     a <- i8 v
--- >     b <- i8 w
--- >     c <- i8 x
--- >     return (a,b,c)
--- >   {-# INLINE i8i8i8 #-} -- For efficiency
+-- >         a <- i8 v
+-- >         b <- i8 w
+-- >         c <- i8 x
+-- >         return (a,b,c)
+-- >       {-# INLINE i8i8i8 #-} -- For efficiency
 -- >   putStrLn . show $ packing i8i8i8 (-90,-80,100)
 -- >   putStrLn . show $ unpacking i8i8i8 $ packing i8i8i8 (-90,-80,100)
 -- 
@@ -23,7 +23,7 @@
 -- > "d"
 -- > "\166\176d"
 -- > Right (-90,-80,100)
-
+-- 
 {-# LANGUAGE FlexibleInstances, RankNTypes #-}
 
 module Data.Pack
@@ -56,7 +56,7 @@ packing f v =
 {-# INLINE packing #-}
 
 unpacking :: (a -> Packet e a) -> ByteString -> Either e a
-unpacking f z@(B.PS fp ptr len) =
+unpacking f (B.PS fp ptr len) =
   let Packet (get, size, _) = f (error "no touch")
   in unsafePerformIO $
     withForeignPtr (castForeignPtr fp) $ \ptr -> do
@@ -73,10 +73,10 @@ pactest :: IO ()
 pactest = do
   putStrLn . show $ packing i8 100
   let i8i8i8 ~(v,w,x) = do
-    a <- i8 v
-    b <- i8 w
-    c <- i8 x
-    return (a,b,c)
+        a <- i8 v
+        b <- i8 w
+        c <- i8 x
+        return (a,b,c)
       {-# INLINE i8i8i8 #-}
   putStrLn . show $ packing i8i8i8 (-90,-80,100)
   putStrLn . show $ unpacking i8i8i8 $ packing i8i8i8 (-90,-80,100)

@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                pack
-version:             0.2.0
+version:             0.3.0
 synopsis:            Yet another ByteString packer/unpacker
 -- description:         
 homepage:            https://github.com/capsjac/pack

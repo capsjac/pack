@@ -64,3 +64,9 @@ instance Monad (Packet e) where
     )
   {-# INLINE (>>=) #-}
 
+-- instance Alternative (Packet e) where
+
+-- | Derived from lens package
+dimapP :: (b -> a) -> (a -> b) -> (a -> Packet e a) -> b -> Packet e b
+dimapP ba ab f b = ab <$> f (ba b)
+
