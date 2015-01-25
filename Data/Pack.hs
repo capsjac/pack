@@ -1,23 +1,24 @@
-{-# LANGUAGE FlexibleInstances, TupleSections #-}
-module Packet (test)where
+-- |
+-- Module      : Data.Pack
+-- License     : BSD-style
+-- Maintainer  : capsjac <capsjac at gmail dot com>
+-- Stability   : Experimental
+-- Portability : Unknown
+--
+{-# LANGUAGE FlexibleInstances #-}
+
+module Data.Pack
+  where
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Internal as B (ByteString(..), mallocByteString, toForeignPtr)
-import Foreign hiding (void)
+import Data.Pack.Primitives
 import System.IO.Unsafe
 import Debug.Trace
 
-
-type Packer a = a -> Packet String a
-newtype Packet e a = Packet
-	{ unPacket ::
-		( Ptr () -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)
-		, Int -> Int
-		, Ptr () -> Ptr () -> Ptr () -> IO (Ptr ()) )
-	}
 
 instance Functor (Packet e) where
 	fmap f m =
@@ -62,53 +63,6 @@ instance Monad (Packet e) where
 		)
 	{-# INLINE (>>=) #-}
 
-i8 :: Packer Int8
-i8 a = Packet (needs 1 peek, (+1), pokeWith 1 poke a)
-{-# INLINE i8 #-}
-
-i16 :: Packer Int8
-i16 = simple 2 peek poke
-{-# INLINE i16 #-}
-
-i32 :: Packer Int32
-i32 = simple 4 peek poke
-{-# INLINE i32 #-}
-
-i64 :: Packer Int64
-i64 = simple 8 peek poke
-{-# INLINE i64 #-}
-
-u8 :: Packer Word8
-u8 = simple 1 peek poke
-{-# INLINE u8 #-}
-
-u16 :: Packer Word8
-u16 = simple 2 peek poke
-{-# INLINE u16 #-}
-
-u32 :: Packer Word32
-u32 = simple 4 peek poke
-{-# INLINE u32 #-}
-
-u64 :: Packer Word64
-u64 = simple 8 peek poke
-{-# INLINE u64 #-}
-
-simple n get put = \a ->
-	Packet (needs n get, (+n), pokeWith n put a)
-{-# INLINE simple #-}
-
-needs :: Int -> (Ptr a -> IO a) -> Ptr () -> Ptr () -> Ptr () -> IO (Ptr (), Either String a)
-needs n f _ bottom ptr | plusPtr ptr n <= bottom =
-	(plusPtr ptr n,) . Right <$> f (castPtr ptr)
-needs _ _ _ _ ptr =
-	return (ptr, Left "not enough bytes.")
-{-# INLINE needs #-}
-
-pokeWith :: Int -> (Ptr a -> a -> IO ()) -> a -> Ptr () -> Ptr () -> Ptr () -> IO (Ptr ())
-pokeWith n f a = \_ _ p -> f (castPtr p) a >> return (plusPtr p 1)
-{-# INLINE pokeWith #-}
-
 pac :: Packer a -> a -> ByteString
 pac f v =
 	let Packet (_, size, put) = f v
@@ -138,3 +92,4 @@ test = do
 	    {-# INLINE ii88 #-}
 	putStrLn . show $ pac ii88 (-90,-80,100)
 	putStrLn . show $ pek ii88 $ pac ii88 (-90,-80,100)
+

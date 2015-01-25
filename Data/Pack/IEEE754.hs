@@ -13,7 +13,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Data.Packer.IEEE754 (
+module Data.Pack.IEEE754 (
       wordToDouble
     , wordToFloat
     , doubleToWord
@@ -52,3 +52,4 @@ cast :: (MArray (STUArray s) a (ST s),
          MArray (STUArray s) b (ST s)) =>
         a -> ST s b
 cast x = newArray (0 :: Int, 0) x >>= castSTUArray >>= flip readArray 0
+

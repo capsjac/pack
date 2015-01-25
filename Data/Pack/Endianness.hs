@@ -6,7 +6,7 @@
 -- Portability : Unknown
 --
 {-# LANGUAGE CPP #-}
-module Data.Packer.Endian
+module Data.Pack.Endianness
   ( le16Host
   , le32Host
   , le64Host
