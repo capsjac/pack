@@ -47,37 +47,37 @@ import System.IO.Unsafe
 
 packing :: (a -> Packet e a) -> a -> ByteString
 packing f v =
-	let Packet (_, size, put) = f v
-	in unsafePerformIO $ do
-		fp <- B.mallocByteString (size 0)
-		withForeignPtr fp $ \ptr -> do
-			endPtr <- put fp (plusPtr ptr (size 0)) (castPtr ptr)
-			return $! B.PS fp 0 (minusPtr endPtr ptr)
+  let Packet (_, size, put) = f v
+  in unsafePerformIO $ do
+    fp <- B.mallocByteString (size 0)
+    withForeignPtr fp $ \ptr -> do
+      endPtr <- put fp (plusPtr ptr (size 0)) (castPtr ptr)
+      return $! B.PS fp 0 (minusPtr endPtr ptr)
 {-# INLINE packing #-}
 
 unpacking :: (a -> Packet e a) -> ByteString -> Either e a
 unpacking f z@(B.PS fp ptr len) =
-	let Packet (get, size, _) = f (error "no touch")
-	in unsafePerformIO $
-		withForeignPtr (castForeignPtr fp) $ \ptr -> do
-			(p', v) <- get fp (plusPtr ptr (size 0)) ptr
-			return v
+  let Packet (get, size, _) = f (error "no touch")
+  in unsafePerformIO $
+    withForeignPtr (castForeignPtr fp) $ \ptr -> do
+      (p', v) <- get fp (plusPtr ptr (size 0)) ptr
+      return v
 {-# INLINE unpacking #-}
 
 -- | Prism.
 packet :: Packer a -> Prism' ByteString a
 packet packer = prism' (packing packer)
-	(either (const Nothing) Just . unpacking packer)
+  (either (const Nothing) Just . unpacking packer)
 
 pactest :: IO ()
 pactest = do
-	putStrLn . show $ packing i8 100
-	let i8i8i8 ~(v,w,x) = do
-		a <- i8 v
-		b <- i8 w
-		c <- i8 x
-		return (a,b,c)
-	    {-# INLINE i8i8i8 #-}
-	putStrLn . show $ packing i8i8i8 (-90,-80,100)
-	putStrLn . show $ unpacking i8i8i8 $ packing i8i8i8 (-90,-80,100)
+  putStrLn . show $ packing i8 100
+  let i8i8i8 ~(v,w,x) = do
+    a <- i8 v
+    b <- i8 w
+    c <- i8 x
+    return (a,b,c)
+      {-# INLINE i8i8i8 #-}
+  putStrLn . show $ packing i8i8i8 (-90,-80,100)
+  putStrLn . show $ unpacking i8i8i8 $ packing i8i8i8 (-90,-80,100)
 
