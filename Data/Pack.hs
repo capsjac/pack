@@ -5,16 +5,30 @@
 -- Stability   : Experimental
 -- Portability : Unknown
 --
-{-# LANGUAGE FlexibleInstances #-}
+-- Usage:
+-- 
+-- > test = do
+-- >   putStrLn . show $ pac i8 100
+-- >   let i8i8i8 ~(v,w,x) = do
+-- >     a <- i8 v
+-- >     b <- i8 w
+-- >     c <- i8 x
+-- >     return (a,b,c)
+-- >   {-# INLINE i8i8i8 #-}
+-- >   putStrLn . show $ pac i8i8i8 (-90,-80,100)
+-- >   putStrLn . show $ pek i8i8i8 $ pac i8i8i8 (-90,-80,100)
+{-# LANGUAGE FlexibleInstances, RankNTypes #-}
 
 module Data.Pack
   ( pac
   , pek
+  , packet
   , test
   , module Data.Pack.Primitives
   ) where
 
 import Control.Applicative
+import Control.Lens
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
@@ -68,7 +82,7 @@ instance Monad (Packet e) where
 		)
 	{-# INLINE (>>=) #-}
 
-pac :: Packer a -> a -> ByteString
+pac :: (a -> Packet e a) -> a -> ByteString
 pac f v =
 	let Packet (_, size, put) = f v
 	in unsafePerformIO $ do
@@ -86,6 +100,10 @@ pek f z@(B.PS fp ptr len) =
 			(p', v) <- get ptr (plusPtr ptr (size 0)) ptr
 			return v
 {-# INLINE pek #-}
+
+-- | Prism.
+packet :: Packer a -> Prism' ByteString a
+packet packer = prism' (pac packer) (either (const Nothing) Just . pek packer)
 
 test = do
 	putStrLn . show $ pac i8 100
