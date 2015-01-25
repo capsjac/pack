@@ -62,6 +62,9 @@ module Data.Pack.Primitives
   --, utf8Len
   --, utf16
   --, utf16Len
+  --, enumOf :: (Num a, Enum b) => Packer a -> Packer b
+  --, bitfields
+  --, dicase
   ) where
 
 import Control.Applicative
@@ -277,4 +280,13 @@ simpleBS n = fixedPacket get put n
       let (fp, off, len) = B.toForeignPtr bs
       withForeignPtr fp $ \ptr' ->
         B.memcpy (castPtr ptr) (plusPtr ptr' off) (fromIntegral len)
+
+--tag <- i32 (getTagId data)
+--let getcase tag = case tag of
+--  0 -> A <$> i32
+--  1 -> B <$> f32
+--let putcase dat = case dat of
+--  A i -> i32 i
+--  B f -> f32 f
+--val <- dicase (getcase tag) (putcase data)
 
