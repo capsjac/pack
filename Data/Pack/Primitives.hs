@@ -45,8 +45,8 @@ module Data.Pack.Primitives
   , remainingBytesCopy
   , storable
   --, extensible
-  --, vector
-  --, vector'
+  , vector
+  --, array
   , pad
   , unused
   , alignedTo
@@ -75,6 +75,9 @@ import qualified Data.ByteString.Internal as B
 import Data.Pack.Endianness
 import Data.Pack.IEEE754
 import Data.Pack.Types
+import qualified Data.Vector.Generic as V
+import qualified Data.Vector.Storable as VS
+import qualified Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
 
@@ -245,6 +248,25 @@ storable :: Storable a => Packer a
 storable a = simple (sizeOf a) id id a
 {-# INLINE storable #-}
 
+-- | A "Data.Vector.Generic" 'Packet'.
+vector :: V.Vector v a => Packer a -> Int -> Packer (v a)
+vector packer n vec = Packet (get, size, put)
+  where
+    Packet (get, _, _) = V.replicateM n (packer undefined)
+    Packet (_, size, put) = V.mapM packer vec
+{-# INLINE vector #-}
+
+---- | A "Data.Vector.Storable" 'Packet'. Read operation is zero-copy.
+--array :: Storable a => Int -> Packer (VS.Vector a)
+--array n = \vec -> Packet
+--  ( VS.unsafeFromForeignPtr fp offset len
+--  , (+ n * sizeOf (V.head vec))
+--  , B.fromForeignPtr .. VS.unsafeToForeignPtr0 )
+--  where
+--    Packet (get, _, _) = V.replicateM n (packer undefined)
+--    Packet (_, size, put) = V.mapM packer vec
+--{-# INLINE array #-}
+
 -- | Skip bytes, filling with specified byte.
 pad :: Word8 -> Int -> Packet String ()
 pad filler n = replicateM_ n (u8 filler) -- XXX make this faster
@@ -309,16 +331,15 @@ mkInfoPacket f = Packet
 {-# INLINE mkInfoPacket #-}
 
 getTop :: ByteString -> IO (Ptr a)
-getTop (B.PS fp off _) = withForeignPtr fp $ \ptr ->
-  return $ castPtr $ ptr `plusPtr` off
+getTop (B.PS fp off _) =
+  return $ castPtr $ getPtr fp `plusPtr` off
 {-# INLINE getTop #-}
 
 simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
 simpleBS n = fixedPacket get put n
   where
     get (B.PS fp _ _) cur = do
-      offset <- withForeignPtr fp $ \orig ->
-        return (cur `minusPtr` orig)
+      let offset = cur `minusPtr` getPtr fp
       return $ B.fromForeignPtr fp offset n
     put cur bs@(B.PS _ _ srclen) = do
       top <- getTop bs
