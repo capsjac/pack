@@ -1,12 +1,18 @@
 pack
 ====
 
-Bidirectional packer/unpacker
+Bidirectional fast ByteString packer/unpacker for Haskell
 
-ghci> pac 1 i8 10 == "\n"
-ghci> pek i8 "\n" == 10
+$ cabal install pack
+$ ghci
+ghci> import qualified Data.ByteString as BS
+ghci> import Data.Pack
+ghci> packing i8 10
+"\n"
+ghci> unpacking i8 (BS.pack "\n")
+Just 10
 
 Stability: Experimental
-Contributing: Welcome
+Contribution: Welcome
 Maintainer: capsjac
 
