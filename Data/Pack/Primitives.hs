@@ -56,6 +56,7 @@ module Data.Pack.Primitives
   , getPosition
   , getTotalSize
   , getRemaining
+  , isEmpty
   --, cString
   --, cStringLen
   --, utf8
@@ -64,7 +65,7 @@ module Data.Pack.Primitives
   --, utf16Len
   , enumOf
   --, bitfields
-  --, dicase
+  , dicase
   ) where
 
 import Control.Applicative
@@ -298,6 +299,10 @@ getRemaining = mkInfoPacket $ \_ bottom cur ->
   return (cur, Right (bottom `minusPtr` cur))
 {-# INLINE getRemaining #-}
 
+isEmpty :: Packet e Bool
+isEmpty = (== 0) <$> getRemaining
+{-# INLINE isEmpty #-}
+
 mkInfoPacket :: (ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
 mkInfoPacket f = Packet
   (f, id, \_ _ p -> return p )
@@ -320,14 +325,21 @@ simpleBS n = fixedPacket get put n
       B.memcpy (castPtr cur) top (fromIntegral srclen)
 {-# INLINE simpleBS #-}
 
---tag <- i32 (getTagId data)
---let getcase tag = case tag of
---  0 -> A <$> i32
---  1 -> B <$> f32
---let putcase dat = case dat of
---  A i -> i32 i
---  B f -> f32 f
---val <- dicase (getcase tag) (putcase data)
 enumOf :: (Integral a, Enum b) => Packer a -> Packer b
 enumOf = dimapP (fromIntegral.fromEnum) (toEnum.fromIntegral)
+
+-- |
+-- > tag <- i32 (getTagId dat)
+-- > let getcase tag = case tag of
+-- >   0 -> A <$> i32 undefined
+-- >   1 -> B <$> f32 undefined
+-- > let putcase dat = case dat of
+-- >   A i -> i32 i
+-- >   B f -> f32 f
+-- > val <- dicase (getcase tag) (putcase data)
+dicase :: Packet e a -> Packet e' a -> Packet e a
+dicase getcase@(Packet (get, _, _))
+       putcase@(Packet (_, size, put)) =
+  Packet (get, size, put)
+
 
