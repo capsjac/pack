@@ -62,7 +62,7 @@ module Data.Pack.Primitives
   --, utf8Len
   --, utf16
   --, utf16Len
-  --, enumOf :: (Num a, Enum b) => Packer a -> Packer b
+  , enumOf
   --, bitfields
   --, dicase
   ) where
