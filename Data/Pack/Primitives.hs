@@ -349,6 +349,7 @@ simpleBS n = fixedPacket get put n
 
 enumOf :: (Integral a, Enum b) => Packer a -> Packer b
 enumOf = dimapP (fromIntegral.fromEnum) (toEnum.fromIntegral)
+{-# INLINE enumOf #-}
 
 -- |
 -- > tag <- i32 (getTagId dat)
@@ -363,5 +364,5 @@ dicase :: Packet e a -> Packet e' a -> Packet e a
 dicase getcase@(Packet (get, _, _))
        putcase@(Packet (_, size, put)) =
   Packet (get, size, put)
-
+{-# INLINE dicase #-}
 
