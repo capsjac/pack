@@ -52,7 +52,8 @@ module Data.Pack.Primitives
   , alignedTo
   --, alignedWith
   --, isolate
-  --, anchor
+  --, hole
+  --, fillHole
   , getPosition
   , getTotalSize
   , getRemaining
@@ -77,7 +78,7 @@ import Data.Pack.IEEE754
 import Data.Pack.Types
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as VS
-import qualified Data.Vector.Storable.Internal (getPtr)
+import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
 
