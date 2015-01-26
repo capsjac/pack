@@ -10,15 +10,16 @@
 module Data.Pack.Types where
 
 import Control.Applicative
+import Data.ByteString
 import Foreign
 
 type Packer a = a -> Packet String a
 
 newtype Packet e a = Packet
   { unPacket ::
-    ( ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)
+    ( ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)
     , Int -> Int
-    , ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr ()) )
+    , ByteString -> Ptr () -> Ptr () -> IO (Ptr ()) )
   }
 
 instance Functor (Packet e) where

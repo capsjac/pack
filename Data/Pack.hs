@@ -49,18 +49,21 @@ packing :: (a -> Packet e a) -> a -> ByteString
 packing f v =
   let Packet (_, size, put) = f v
   in unsafePerformIO $ do
-    fp <- B.mallocByteString (size 0)
+    let len = size 0
+    fp <- B.mallocByteString len
+    let bs = B.PS fp 0 len
     withForeignPtr fp $ \ptr -> do
-      endPtr <- put fp (plusPtr ptr (size 0)) (castPtr ptr)
-      return $! B.PS fp 0 (minusPtr endPtr ptr)
+      endPtr <- put bs (plusPtr ptr len) (castPtr ptr)
+      return bs
 {-# INLINE packing #-}
 
 unpacking :: (a -> Packet e a) -> ByteString -> Either e a
-unpacking f (B.PS fp ptr len) =
+unpacking f bs@(B.PS fp offset len) =
   let Packet (get, size, _) = f (error "no touch")
   in unsafePerformIO $
-    withForeignPtr (castForeignPtr fp) $ \ptr -> do
-      (p', v) <- get fp (plusPtr ptr (size 0)) ptr
+    withForeignPtr (castForeignPtr fp) $ \origPtr -> do
+      let ptr = origPtr `plusPtr` offset
+      (p', v) <- get bs (plusPtr ptr (size 0)) ptr
       return v
 {-# INLINE unpacking #-}
 

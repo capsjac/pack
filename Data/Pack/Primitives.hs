@@ -41,20 +41,20 @@ module Data.Pack.Primitives
   , bytes
   , bytesCopy
   --, bytesWhile
-  --, remainingBytes
-  --, remainingBytesCopy
+  , remainingBytes
+  , remainingBytesCopy
   , storable
   --, extensible
   --, vector
   --, vector'
   , pad
   , unused
-  --, align
-  --, align0
+  , alignedTo
+  --, alignedWith
   --, isolate
   --, anchor
-  --, getPosition
-  --, getTotalSize
+  , getPosition
+  , getTotalSize
   , getRemaining
   --, cString
   --, cStringLen
@@ -227,6 +227,18 @@ bytesCopy :: Int -> Packer ByteString
 bytesCopy n = fmap B.copy . bytes n
 {-# INLINE bytesCopy #-}
 
+-- | A strict 'ByteString' 'Packet'.
+remainingBytes :: Packer ByteString
+remainingBytes x = do
+  n <- getRemaining
+  simpleBS n id id x
+{-# INLINE remainingBytes #-}
+
+-- | A strict 'ByteString' 'Packet'.
+remainingBytesCopy :: Packer ByteString
+remainingBytesCopy = fmap B.copy . remainingBytes
+{-# INLINE remainingBytesCopy #-}
+
 -- | A 'Storable' 'Packet'.
 storable :: Storable a => Packer a
 storable a = simple (sizeOf a) id id a
@@ -242,14 +254,24 @@ unused :: Int -> Packet String ()
 unused = pad 0
 {-# INLINE unused #-}
 
+-- | 
+alignedTo :: Int -> Packet String ()
+alignedTo alignment = do
+  pos <- getPosition
+  unused (mod pos alignment)
+{-# INLINE alignedTo #-}
+
+--aligned :: Int -> Int -> Int
+--aligned alignment n = (n + alignment - 1) .&. complement (alignment - 1)
+
 simple :: Storable a => Int -> (a -> b) -> (b -> a) -> Packer b
-simple = fixedPacket peek poke
+simple = fixedPacket (const peek) poke
 {-# INLINE simple #-}
 
-fixedPacket :: (Ptr a -> IO a) -> (Ptr a -> a -> IO ()) -> Int -> (a -> b) -> (b -> a) -> Packer b
+fixedPacket :: (ByteString -> Ptr a -> IO a) -> (Ptr a -> a -> IO ()) -> Int -> (a -> b) -> (b -> a) -> Packer b
 fixedPacket get put n toHost fromHost =
   dimapP fromHost toHost $ \a -> Packet
-    ( \_ b p -> (plusPtr p n,) <$> checkBdr n b p (get (castPtr p))
+    ( \bs b p -> (plusPtr p n,) <$> checkBdr n b p (get bs (castPtr p))
     , (+n)
     , \_ _ p -> put (castPtr p) a >> return (plusPtr p n))
 {-# INLINE fixedPacket #-}
@@ -259,27 +281,44 @@ checkBdr n bottom ptr f | plusPtr ptr n <= bottom = Right <$> f
 checkBdr _ _ _ _ = return (Left "not enough bytes.")
 {-# INLINE checkBdr #-}
 
+getPosition :: Packet e Int
+getPosition = mkInfoPacket $ \bs _ cur -> do
+  top <- getTop bs
+  return (cur, Right (cur `minusPtr` top))
+{-# INLINE getPosition #-}
+
+getTotalSize :: Packet e Int
+getTotalSize = mkInfoPacket $ \bs bottom cur -> do
+  top <- getTop bs
+  return (cur, Right (bottom `minusPtr` top))
+{-# INLINE getTotalSize #-}
+
 getRemaining :: Packet e Int
-getRemaining = mkInfoPacket $ \_ bottom current ->
-  return (current, Right (minusPtr bottom current))
+getRemaining = mkInfoPacket $ \_ bottom cur ->
+  return (cur, Right (bottom `minusPtr` cur))
 {-# INLINE getRemaining #-}
 
-mkInfoPacket :: (ForeignPtr Word8 -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
+mkInfoPacket :: (ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
 mkInfoPacket f = Packet
   (f, id, \_ _ p -> return p )
 {-# INLINE mkInfoPacket #-}
 
+getTop :: ByteString -> IO (Ptr a)
+getTop (B.PS fp off _) = withForeignPtr fp $ \ptr ->
+  return $ castPtr $ ptr `plusPtr` off
+{-# INLINE getTop #-}
+
 simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
 simpleBS n = fixedPacket get put n
   where
-    get ptr = do
-      fp <- mallocForeignPtrBytes 4 -- XXX
-      offset <- return 0 --withForeignPtr fp $ \origPtr -> return (ptr `minusPtr` origPtr)
+    get (B.PS fp _ _) cur = do
+      offset <- withForeignPtr fp $ \orig ->
+        return (cur `minusPtr` orig)
       return $ B.fromForeignPtr fp offset n
-    put ptr bs = do
-      let (fp, off, len) = B.toForeignPtr bs
-      withForeignPtr fp $ \ptr' ->
-        B.memcpy (castPtr ptr) (plusPtr ptr' off) (fromIntegral len)
+    put cur bs@(B.PS _ _ srclen) = do
+      top <- getTop bs
+      B.memcpy (castPtr cur) top (fromIntegral srclen)
+{-# INLINE simpleBS #-}
 
 --tag <- i32 (getTagId data)
 --let getcase tag = case tag of
@@ -289,4 +328,6 @@ simpleBS n = fixedPacket get put n
 --  A i -> i32 i
 --  B f -> f32 f
 --val <- dicase (getcase tag) (putcase data)
+enumOf :: (Integral a, Enum b) => Packer a -> Packer b
+enumOf = dimapP (fromIntegral.fromEnum) (toEnum.fromIntegral)
 
