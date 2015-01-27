@@ -3,13 +3,15 @@
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
--- Portability : Unknown
+-- Portability : GHC, Unknown
 --
 {-# LANGUAGE TupleSections #-}
 
 module Data.Pack.Primitives
   ( Packer
   , Packet(..)
+  
+  -- * Fixed sized
   , i8
   , i16
   , i32
@@ -38,35 +40,40 @@ module Data.Pack.Primitives
   , f64host
   , f32be
   , f64be
+
+  -- * Bytes
   , bytes
   , bytesCopy
   --, bytesWhile
   , remainingBytes
   , remainingBytesCopy
+  --, cstring
+  --, varchar
+
+  -- * Structures
+  , vector
+  , array
   , storable
   --, extensible
-  , vector
-  --, array
+  , enumOf
+  --, bitfields
+  , dicase
+  --, isolate
+  --, hole
+  --, fillHole
+
+  -- * Spaces
   , pad
   , unused
   , alignedTo
   --, alignedWith
-  --, isolate
-  --, hole
-  --, fillHole
+  --, skipWhile
+
+  -- * Information
   , getPosition
   , getTotalSize
   , getRemaining
-  , isEmpty
-  --, cString
-  --, cStringLen
-  --, utf8
-  --, utf8Len
-  --, utf16
-  --, utf16Len
-  , enumOf
-  --, bitfields
-  , dicase
+  , isFull
   ) where
 
 import Control.Applicative
@@ -257,16 +264,18 @@ vector packer n vec = Packet (get, size, put)
     Packet (_, size, put) = V.mapM packer vec
 {-# INLINE vector #-}
 
----- | A "Data.Vector.Storable" 'Packet'. Read operation is zero-copy.
---array :: Storable a => Int -> Packer (VS.Vector a)
---array n = \vec -> Packet
---  ( VS.unsafeFromForeignPtr fp offset len
---  , (+ n * sizeOf (V.head vec))
---  , B.fromForeignPtr .. VS.unsafeToForeignPtr0 )
---  where
---    Packet (get, _, _) = V.replicateM n (packer undefined)
---    Packet (_, size, put) = V.mapM packer vec
---{-# INLINE array #-}
+-- | A "Data.Vector.Storable" 'Packet'. Read operation is zero-copy.
+array :: Storable a => Int -> Packer (VS.Vector a)
+array n vec = fixedPacket get put size id id vec
+  where
+    size = n * sizeOf (V.head vec)
+    get (B.PS fptr _ _) cur = do
+      let fp = castForeignPtr fptr
+      let offset = cur `minusPtr` getPtr fp
+      return $ VS.unsafeFromForeignPtr fp offset n
+    put dstPtr _ = VS.unsafeWith vec $ \srcPtr ->
+      copyArray (castPtr dstPtr) srcPtr (V.length vec)
+{-# INLINE array #-}
 
 -- | Skip bytes, filling with specified byte.
 pad :: Word8 -> Int -> Packet String ()
@@ -322,9 +331,9 @@ getRemaining = mkInfoPacket $ \_ bottom cur ->
   return (cur, Right (bottom `minusPtr` cur))
 {-# INLINE getRemaining #-}
 
-isEmpty :: Packet e Bool
-isEmpty = (== 0) <$> getRemaining
-{-# INLINE isEmpty #-}
+isFull :: Packet e Bool
+isFull = (== 0) <$> getRemaining
+{-# INLINE isFull #-}
 
 mkInfoPacket :: (ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
 mkInfoPacket f = Packet
