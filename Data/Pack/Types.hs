@@ -94,6 +94,14 @@ fixedPacket get put n toHost fromHost =
     , \_ _ p -> put (castPtr p) a >> return (plusPtr p n))
 {-# INLINE fixedPacket #-}
 
+-- | Generate a variable-length 'Packer'.
+asymmPacket :: (ByteString -> Ptr a -> IO a) -> Int -> (Ptr a -> IO ()) -> Int -> Packet String a
+asymmPacket get getsize put putsize = Packet
+    ( \bs b p -> (plusPtr p getsize,) <$> checkBdr getsize b p (get bs (castPtr p))
+    , (+ putsize)
+    , \_ _ p -> put (castPtr p) >> return (plusPtr p putsize))
+{-# INLINE asymmPacket #-}
+
 -- | Unpackers should not read out of memory, so check the border here.
 checkBdr :: Int -> Ptr () -> Ptr () -> IO a -> IO (Either String a)
 checkBdr n bottom ptr f | plusPtr ptr n <= bottom = Right <$> f

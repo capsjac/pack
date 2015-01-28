@@ -19,7 +19,7 @@ module Data.Pack.ByteString
   --, varchar
   ) where
 
-import Data.ByteString as B (ByteString, copy)
+import Data.ByteString as B (ByteString, copy, length)
 import qualified Data.ByteString.Internal as B
 import Data.Pack.Types
 import Data.Pack.Space (getRemaining)
@@ -73,13 +73,15 @@ remainingBytesCopy = fmap B.copy . remainingBytes
 --{-# INLINE varchar #-}
 
 simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
-simpleBS n = fixedPacket get put n
+simpleBS n toHost fromHost a = asymmPacket get n put m
   where
     get (B.PS fp _ _) cur = do
       let offset = cur `minusPtr` getPtr fp
-      return $ B.fromForeignPtr fp offset n
-    put cur bs@(B.PS _ _ srclen) = do
+      return . toHost $ B.fromForeignPtr fp offset n
+    bs = fromHost a
+    put cur = do
       top <- getTop bs
-      B.memcpy (castPtr cur) top (fromIntegral srclen)
+      B.memcpy (castPtr cur) top (fromIntegral (B.length bs))
+    m = B.length bs
 {-# INLINE simpleBS #-}
 

@@ -41,15 +41,16 @@ vector packer n vec = Packet (get, size, put)
 
 -- | A "Data.Vector.Storable" 'Packet'. Read operation is copy-free.
 array :: Storable a => Int -> Packer (VS.Vector a)
-array n vec = fixedPacket get put size id id vec
+array len vec = asymmPacket get n put m
   where
-    size = V.length vec * sizeOf (V.head vec)
     get (PS fptr _ _) cur = do
       let fp = castForeignPtr fptr
       let offset = cur `minusPtr` getPtr fp
-      return $ VS.unsafeFromForeignPtr fp offset n
-    put dstPtr _ = VS.unsafeWith vec $ \srcPtr ->
+      return $ VS.unsafeFromForeignPtr fp offset len
+    n = len * sizeOf (V.head vec)
+    put dstPtr = VS.unsafeWith vec $ \srcPtr ->
       copyArray (castPtr dstPtr) srcPtr (V.length vec)
+    m = V.length vec * sizeOf (V.head vec)
 {-# INLINE array #-}
 
 -- | Similar to 'array' but copy the bytes.
