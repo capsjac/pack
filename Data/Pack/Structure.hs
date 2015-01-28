@@ -43,7 +43,7 @@ vector packer n vec = Packet (get, size, put)
 array :: Storable a => Int -> Packer (VS.Vector a)
 array n vec = fixedPacket get put size id id vec
   where
-    size = n * sizeOf (V.head vec)
+    size = V.length vec * sizeOf (V.head vec)
     get (PS fptr _ _) cur = do
       let fp = castForeignPtr fptr
       let offset = cur `minusPtr` getPtr fp
