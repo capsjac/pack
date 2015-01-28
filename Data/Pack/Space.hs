@@ -56,23 +56,28 @@ alignedWith filler blockSize = do
 --aligned :: Int -> Int -> Int
 --aligned alignment n = (n + alignment - 1) .&. complement (alignment - 1)
 
+-- | Get the position in the memory block.
 getPosition :: Packet e Int
 getPosition = mkInfoPacket $ \bs _ cur -> do
   top <- getTop bs
   return (cur, Right (cur `minusPtr` top))
 {-# INLINE getPosition #-}
 
+-- | Get the total size of the memory block.
 getTotalSize :: Packet e Int
 getTotalSize = mkInfoPacket $ \bs bottom cur -> do
   top <- getTop bs
   return (cur, Right (bottom `minusPtr` top))
 {-# INLINE getTotalSize #-}
 
+-- | Get a number of bytes to go in the memory block.
 getRemaining :: Packet e Int
 getRemaining = mkInfoPacket $ \_ bottom cur ->
   return (cur, Right (bottom `minusPtr` cur))
 {-# INLINE getRemaining #-}
 
+-- | Return True if source ByteString is fully consumed or target ByteString
+-- is full.
 isFull :: Packet e Bool
 isFull = (== 0) <$> getRemaining
 {-# INLINE isFull #-}
