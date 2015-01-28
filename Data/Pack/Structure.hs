@@ -11,6 +11,7 @@ module Data.Pack.Structure
   -- * Structures
     vector
   , array
+  , arrayCopy
   , storable
   --, extensible
   , enumOf
@@ -29,7 +30,8 @@ import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
 
--- | A "Data.Vector.Generic" 'Packet'.
+-- | A "Data.Vector.Generic" 'Packet'. Get and put an array of arbitary
+-- type of 'Packet's.
 vector :: V.Vector v a => Packer a -> Int -> Packer (v a)
 vector packer n vec = Packet (get, size, put)
   where
@@ -37,7 +39,7 @@ vector packer n vec = Packet (get, size, put)
     Packet (_, size, put) = V.mapM packer vec
 {-# INLINE vector #-}
 
--- | A "Data.Vector.Storable" 'Packet'. Read operation is zero-copy.
+-- | A "Data.Vector.Storable" 'Packet'. Read operation is copy-free.
 array :: Storable a => Int -> Packer (VS.Vector a)
 array n vec = fixedPacket get put size id id vec
   where
@@ -50,16 +52,24 @@ array n vec = fixedPacket get put size id id vec
       copyArray (castPtr dstPtr) srcPtr (V.length vec)
 {-# INLINE array #-}
 
--- | A 'Storable' 'Packet'.
+-- | Similar to 'array' but copy the bytes.
+arrayCopy :: Storable a => Int -> Packer (VS.Vector a)
+arrayCopy n = fmap VS.force . array n
+{-# INLINE arrayCopy #-}
+
+-- | A 'Storable' 'Packet'. Note that 'Storable' must not be used to
+-- store variable sized structures.
 storable :: Storable a => Packer a
 storable a = simple (sizeOf a) id id a
 {-# INLINE storable #-}
 
+-- | Represent a simple enum field.
 enumOf :: (Integral a, Enum b) => Packer a -> Packer b
 enumOf = dimapP (fromIntegral.fromEnum) (toEnum.fromIntegral)
 {-# INLINE enumOf #-}
 
--- |
+-- | A dirty hack to handle unions.
+-- 
 -- > tag <- i32 (getTagId dat)
 -- > let getcase tag = case tag of
 -- >   0 -> A <$> i32 undefined

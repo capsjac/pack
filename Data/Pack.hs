@@ -5,6 +5,8 @@
 -- Stability   : Experimental
 -- Portability : Unknown
 --
+-- Bidirectional packing module.
+-- 
 -- Usage:
 -- 
 -- > pactest = do
@@ -52,6 +54,7 @@ import Foreign.ForeignPtr
 import System.IO.Unsafe
 
 
+-- | Pack with a monadic action ('Packer' a) and return the 'ByteString'. 
 packing :: (a -> Packet e a) -> a -> ByteString
 packing f v =
   let Packet (_, size, put) = f v
@@ -64,6 +67,7 @@ packing f v =
       return bs
 {-# INLINE packing #-}
 
+-- | Unpack a 'ByteString' using a 'Packer'.
 unpacking :: (a -> Packet e a) -> ByteString -> Either e a
 unpacking f bs@(B.PS fp offset len) =
   let Packet (get, size, _) = f (error "no touch")
@@ -74,11 +78,12 @@ unpacking f bs@(B.PS fp offset len) =
       return v
 {-# INLINE unpacking #-}
 
--- | Prism.
+-- | Prism from lens package.
 packet :: Packer a -> Prism' ByteString a
 packet packer = prism' (packing packer)
   (either (const Nothing) Just . unpacking packer)
 
+-- | Readme.
 pactest :: IO ()
 pactest = do
   putStrLn . show $ packing i8 100

@@ -27,12 +27,15 @@ import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
 
--- | A strict 'ByteString' 'Packet'.
+-- | Slice a number of bytes from the source 'ByteString'.
+-- The original block of memory is expected to live for the life of this
+-- ByteString.
 bytes :: Int -> Packer ByteString
 bytes n = simpleBS n id id
 {-# INLINE bytes #-}
 
--- | A strict 'ByteString' 'Packet'.
+-- | Copy a number of bytes from the source 'ByteString'.
+-- Similar to 'bytes' but this allow the original block of memory to go away.
 bytesCopy :: Int -> Packer ByteString
 bytesCopy n = fmap B.copy . bytes n
 {-# INLINE bytesCopy #-}
@@ -47,14 +50,14 @@ bytesCopy n = fmap B.copy . bytes n
 --bytesWhileChar pred = B.memchr ptr 0 csize
 --{-# INLINE bytesWhileChar #-}
 
--- | A strict 'ByteString' 'Packet'.
+-- | Slice the remaining bytes.
 remainingBytes :: Packer ByteString
 remainingBytes x = do
   n <- getRemaining
   simpleBS n id id x
 {-# INLINE remainingBytes #-}
 
--- | A strict 'ByteString' 'Packet'.
+-- | Similar to 'remainingBytes' but copy the remaining bytes.
 remainingBytesCopy :: Packer ByteString
 remainingBytesCopy = fmap B.copy . remainingBytes
 {-# INLINE remainingBytesCopy #-}
