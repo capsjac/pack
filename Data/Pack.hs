@@ -24,24 +24,31 @@
 -- > "\166\176d"
 -- > Right (-90,-80,100)
 -- 
-{-# LANGUAGE FlexibleInstances, RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Data.Pack
   ( packing
   , unpacking
   , packet
   , pactest
+  , Packer
+  , Packet
   , module Data.Pack.Primitives
+  , module Data.Pack.ByteString
+  , module Data.Pack.Structure
+  , module Data.Pack.Space
   ) where
 
-import Control.Applicative
 import Control.Lens
-import Control.Monad
-import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.Internal as B (ByteString(..), mallocByteString, toForeignPtr)
+import qualified Data.ByteString.Internal as B (ByteString(..), mallocByteString)
+import Data.Pack.Types
 import Data.Pack.Primitives
-import Foreign
+import Data.Pack.ByteString
+import Data.Pack.Structure
+import Data.Pack.Space
+import Foreign.Ptr
+import Foreign.ForeignPtr
 import System.IO.Unsafe
 
 

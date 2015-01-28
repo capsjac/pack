@@ -3,7 +3,7 @@
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
--- Portability : Unknown
+-- Portability : Portable
 -- 
 {-# LANGUAGE CPP #-}
 
@@ -82,17 +82,14 @@ swap16 w = (w `shr` 8) .|. (w `shl` 8)
 #endif
 
 -- | 16 bit big endian to host endian.
-{-# INLINE be16Host #-}
 be16Host :: Word16 -> Word16
 be16Host = FromBE(16)
 
 -- | 32 bit big endian to host endian.
-{-# INLINE be32Host #-}
 be32Host :: Word32 -> Word32
 be32Host = FromBE(32)
 
 -- | 64 bit big endian to host endian.
-{-# INLINE be64Host #-}
 be64Host :: Word64 -> Word64
 be64Host = FromBE(64)
 

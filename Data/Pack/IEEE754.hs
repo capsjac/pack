@@ -21,7 +21,6 @@ module Data.Pack.IEEE754 (
 ) where
 
 import Control.Monad.ST (runST, ST)
-
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
 import Data.Word (Word32, Word64)
 

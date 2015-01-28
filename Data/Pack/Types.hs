@@ -3,18 +3,25 @@
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
--- Portability : Unknown
+-- Portability : Portable
 --
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
 
 module Data.Pack.Types where
 
 import Control.Applicative
+import Control.Monad.IO.Class
 import Data.ByteString
+import Data.ByteString.Internal (ByteString(..))
+import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
+-- | A 'Packer' recieves one value to pack and returns one 'Packet' which is
+-- used to unpack the value of same type.
 type Packer a = a -> Packet String a
 
+-- | Bidirectional packing/unpacking Monad.
 newtype Packet e a = Packet
   { unPacket ::
     ( ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)
@@ -51,6 +58,7 @@ instance Applicative (Packet e) where
 
 instance Monad (Packet e) where
   return = pure
+  {-# INLINE return #-}
   Packet (mg, ms, mp) >>= f =
     let Packet (_, size, set) = f undefined
     in Packet
@@ -67,7 +75,34 @@ instance Monad (Packet e) where
 
 -- instance Alternative (Packet e) where
 
--- | Derived from lens package
+-- | Derived from lens package. Bidirectional mapping.
 dimapP :: (b -> a) -> (a -> b) -> (a -> Packet e a) -> b -> Packet e b
 dimapP ba ab f b = ab <$> f (ba b)
+{-# INLINE dimapP #-}
+
+-- | 'fixedPacket' for Storable types.
+simple :: Storable a => Int -> (a -> b) -> (b -> a) -> Packer b
+simple = fixedPacket (const peek) poke
+{-# INLINE simple #-}
+
+-- | Generate a fixed-length 'Packer'.
+fixedPacket :: (ByteString -> Ptr a -> IO a) -> (Ptr a -> a -> IO ()) -> Int -> (a -> b) -> (b -> a) -> Packer b
+fixedPacket get put n toHost fromHost =
+  dimapP fromHost toHost $ \a -> Packet
+    ( \bs b p -> (plusPtr p n,) <$> checkBdr n b p (get bs (castPtr p))
+    , (+n)
+    , \_ _ p -> put (castPtr p) a >> return (plusPtr p n))
+{-# INLINE fixedPacket #-}
+
+-- | Unpackers should not read out of memory, so check the border here.
+checkBdr :: Int -> Ptr () -> Ptr () -> IO a -> IO (Either String a)
+checkBdr n bottom ptr f | plusPtr ptr n <= bottom = Right <$> f
+checkBdr _ _ _ _ = return (Left "not enough bytes.")
+{-# INLINE checkBdr #-}
+
+-- | Get a pointer to the head of given 'ByteString'.
+getTop :: ByteString -> IO (Ptr a)
+getTop (PS fp off _) =
+  return $ castPtr $ getPtr fp `plusPtr` off
+{-# INLINE getTop #-}
 

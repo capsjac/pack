@@ -3,16 +3,13 @@
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
--- Portability : GHC, Unknown
+-- Portability : Portable
 --
-{-# LANGUAGE TupleSections #-}
 
 module Data.Pack.Primitives
-  ( Packer
-  , Packet(..)
-  
+  (
   -- * Fixed sized
-  , i8
+    i8
   , i16
   , i32
   , i64
@@ -40,52 +37,11 @@ module Data.Pack.Primitives
   , f64host
   , f32be
   , f64be
-
-  -- * Bytes
-  , bytes
-  , bytesCopy
-  --, bytesWhile
-  , remainingBytes
-  , remainingBytesCopy
-  --, cstring
-  --, varchar
-
-  -- * Structures
-  , vector
-  , array
-  , storable
-  --, extensible
-  , enumOf
-  --, bitfields
-  , dicase
-  --, isolate
-  --, hole
-  --, fillHole
-
-  -- * Spaces
-  , pad
-  , unused
-  , alignedTo
-  --, alignedWith
-  --, skipWhile
-
-  -- * Information
-  , getPosition
-  , getTotalSize
-  , getRemaining
-  , isFull
   ) where
 
-import Control.Applicative
-import Control.Monad
-import Data.ByteString as B (ByteString, copy)
-import qualified Data.ByteString.Internal as B
 import Data.Pack.Endianness
 import Data.Pack.IEEE754
 import Data.Pack.Types
-import qualified Data.Vector.Generic as V
-import qualified Data.Vector.Storable as VS
-import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 
 
@@ -228,150 +184,4 @@ f32be = simple 4 (wordToFloat.be32Host) (be32Host.floatToWord)
 f64be :: Packer Double
 f64be = simple 8 (wordToDouble.be64Host) (be64Host.doubleToWord)
 {-# INLINE f64be #-}
-
--- | A strict 'ByteString' 'Packet'.
-bytes :: Int -> Packer ByteString
-bytes n = simpleBS n id id
-{-# INLINE bytes #-}
-
--- | A strict 'ByteString' 'Packet'.
-bytesCopy :: Int -> Packer ByteString
-bytesCopy n = fmap B.copy . bytes n
-{-# INLINE bytesCopy #-}
-
--- | A strict 'ByteString' 'Packet'.
-remainingBytes :: Packer ByteString
-remainingBytes x = do
-  n <- getRemaining
-  simpleBS n id id x
-{-# INLINE remainingBytes #-}
-
--- | A strict 'ByteString' 'Packet'.
-remainingBytesCopy :: Packer ByteString
-remainingBytesCopy = fmap B.copy . remainingBytes
-{-# INLINE remainingBytesCopy #-}
-
--- | A 'Storable' 'Packet'.
-storable :: Storable a => Packer a
-storable a = simple (sizeOf a) id id a
-{-# INLINE storable #-}
-
--- | A "Data.Vector.Generic" 'Packet'.
-vector :: V.Vector v a => Packer a -> Int -> Packer (v a)
-vector packer n vec = Packet (get, size, put)
-  where
-    Packet (get, _, _) = V.replicateM n (packer undefined)
-    Packet (_, size, put) = V.mapM packer vec
-{-# INLINE vector #-}
-
--- | A "Data.Vector.Storable" 'Packet'. Read operation is zero-copy.
-array :: Storable a => Int -> Packer (VS.Vector a)
-array n vec = fixedPacket get put size id id vec
-  where
-    size = n * sizeOf (V.head vec)
-    get (B.PS fptr _ _) cur = do
-      let fp = castForeignPtr fptr
-      let offset = cur `minusPtr` getPtr fp
-      return $ VS.unsafeFromForeignPtr fp offset n
-    put dstPtr _ = VS.unsafeWith vec $ \srcPtr ->
-      copyArray (castPtr dstPtr) srcPtr (V.length vec)
-{-# INLINE array #-}
-
--- | Skip bytes, filling with specified byte.
-pad :: Word8 -> Int -> Packet String ()
-pad filler n = replicateM_ n (u8 filler) -- XXX make this faster
-{-# INLINE pad #-}
-
--- | Skip bytes, filling with NUL bytes.
-unused :: Int -> Packet String ()
-unused = pad 0
-{-# INLINE unused #-}
-
--- | 
-alignedTo :: Int -> Packet String ()
-alignedTo alignment = do
-  pos <- getPosition
-  unused (mod pos alignment)
-{-# INLINE alignedTo #-}
-
---aligned :: Int -> Int -> Int
---aligned alignment n = (n + alignment - 1) .&. complement (alignment - 1)
-
-simple :: Storable a => Int -> (a -> b) -> (b -> a) -> Packer b
-simple = fixedPacket (const peek) poke
-{-# INLINE simple #-}
-
-fixedPacket :: (ByteString -> Ptr a -> IO a) -> (Ptr a -> a -> IO ()) -> Int -> (a -> b) -> (b -> a) -> Packer b
-fixedPacket get put n toHost fromHost =
-  dimapP fromHost toHost $ \a -> Packet
-    ( \bs b p -> (plusPtr p n,) <$> checkBdr n b p (get bs (castPtr p))
-    , (+n)
-    , \_ _ p -> put (castPtr p) a >> return (plusPtr p n))
-{-# INLINE fixedPacket #-}
-
-checkBdr :: Int -> Ptr () -> Ptr () -> IO a -> IO (Either String a)
-checkBdr n bottom ptr f | plusPtr ptr n <= bottom = Right <$> f
-checkBdr _ _ _ _ = return (Left "not enough bytes.")
-{-# INLINE checkBdr #-}
-
-getPosition :: Packet e Int
-getPosition = mkInfoPacket $ \bs _ cur -> do
-  top <- getTop bs
-  return (cur, Right (cur `minusPtr` top))
-{-# INLINE getPosition #-}
-
-getTotalSize :: Packet e Int
-getTotalSize = mkInfoPacket $ \bs bottom cur -> do
-  top <- getTop bs
-  return (cur, Right (bottom `minusPtr` top))
-{-# INLINE getTotalSize #-}
-
-getRemaining :: Packet e Int
-getRemaining = mkInfoPacket $ \_ bottom cur ->
-  return (cur, Right (bottom `minusPtr` cur))
-{-# INLINE getRemaining #-}
-
-isFull :: Packet e Bool
-isFull = (== 0) <$> getRemaining
-{-# INLINE isFull #-}
-
-mkInfoPacket :: (ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
-mkInfoPacket f = Packet
-  (f, id, \_ _ p -> return p )
-{-# INLINE mkInfoPacket #-}
-
-getTop :: ByteString -> IO (Ptr a)
-getTop (B.PS fp off _) =
-  return $ castPtr $ getPtr fp `plusPtr` off
-{-# INLINE getTop #-}
-
-simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
-simpleBS n = fixedPacket get put n
-  where
-    get (B.PS fp _ _) cur = do
-      let offset = cur `minusPtr` getPtr fp
-      return $ B.fromForeignPtr fp offset n
-    put cur bs@(B.PS _ _ srclen) = do
-      top <- getTop bs
-      B.memcpy (castPtr cur) top (fromIntegral srclen)
-{-# INLINE simpleBS #-}
-
-enumOf :: (Integral a, Enum b) => Packer a -> Packer b
-enumOf = dimapP (fromIntegral.fromEnum) (toEnum.fromIntegral)
-{-# INLINE enumOf #-}
-
--- |
--- > tag <- i32 (getTagId dat)
--- > let getcase tag = case tag of
--- >   0 -> A <$> i32 undefined
--- >   1 -> B <$> f32 undefined
--- > let putcase dat = case dat of
--- >   A i -> i32 i
--- >   B f -> f32 f
--- > val <- dicase (getcase tag) (putcase data)
-dicase :: Packet e a -> Packet e' a -> Packet e a
-dicase getcase@(Packet (get, _, _))
-       putcase@(Packet (_, size, put)) =
-  Packet (get, size, put)
-{-# INLINE dicase #-}
 
