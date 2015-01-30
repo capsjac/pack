@@ -95,9 +95,16 @@ fixedPacket get put n toHost fromHost =
 {-# INLINE fixedPacket #-}
 
 -- | Generate a variable-length 'Packer'.
-asymmPacket :: (ByteString -> Ptr a -> IO a) -> Int -> (Ptr a -> IO ()) -> Int -> Packet String a
-asymmPacket get getsize put putsize = Packet
-    ( \bs b p -> (plusPtr p getsize,) <$> checkBdr getsize b p (get bs (castPtr p))
+asymmPacket :: (ByteString -> IO (Int, Either String a)) -> (Ptr a -> IO ()) -> Int -> Packet String a
+asymmPacket get put putsize = Packet
+    ( \(PS fp _ _) bottom cur -> do 
+      let offset = cur `minusPtr` getPtr fp
+      let bs = PS fp offset (bottom `minusPtr` cur) -- (len - (offset - off))
+      (getsize, value) <- get bs
+      -- bound check is delegated to ByteString.*
+      --when (getsize < 0) $ error "Data.Pack: negative length"
+      return (plusPtr cur getsize, value)
+    
     , (+ putsize)
     , \_ _ p -> put (castPtr p) >> return (plusPtr p putsize))
 {-# INLINE asymmPacket #-}
