@@ -11,17 +11,18 @@ module Data.Pack.ByteString
   -- * Bytes
     bytes
   , bytesCopy
-  --, bytesWhile
-  --, bytesWhileChar
+  , bytesWhile
+  , bytesBefore
+  , cstring
+  , varchar
   , remainingBytes
   , remainingBytesCopy
-  --, cstring
-  --, varchar
   ) where
 
-import Data.ByteString as B (ByteString, copy, length)
+import Data.ByteString as B
 import qualified Data.ByteString.Internal as B
 import Data.Pack.Types
+import Data.Pack.Primitives (i8)
 import Data.Pack.Space (getRemaining)
 import Data.Vector.Storable.Internal (getPtr)
 import Foreign
@@ -31,7 +32,9 @@ import Foreign
 -- The original block of memory is expected to live for the life of this
 -- ByteString.
 bytes :: Int -> Packer ByteString
-bytes n = simpleBS n id id
+bytes n = simpleBS $ \bs -> do
+  let res = B.take n bs
+  return (B.length res, Right res)
 {-# INLINE bytes #-}
 
 -- | Copy a number of bytes from the source 'ByteString'.
@@ -40,21 +43,24 @@ bytesCopy :: Int -> Packer ByteString
 bytesCopy n = fmap B.copy . bytes n
 {-# INLINE bytesCopy #-}
 
----- | A strict 'ByteString' 'Packet'.
---bytesWhile :: (Word8 -> Bool) -> Packer ByteString
---bytesWhile pred = limitedlength
---{-# INLINE bytesWhile #-}
+-- | A strict 'ByteString' 'Packet'.
+bytesWhile :: (Word8 -> Bool) -> Packer ByteString
+bytesWhile pred = simpleBS $ \bs -> do
+  let res = B.takeWhile pred bs
+  return (B.length res, Right res)
+{-# INLINE bytesWhile #-}
 
----- | A strict 'ByteString' 'Packet'.
---bytesWhileChar :: Word8 -> Packer ByteString
---bytesWhileChar pred = B.memchr ptr 0 csize
---{-# INLINE bytesWhileChar #-}
+-- | A strict 'ByteString' 'Packet'.
+bytesBefore :: Word8 -> Packer ByteString
+bytesBefore word = simpleBS $ \bs -> do
+  let res = fst $ B.break (== word) bs
+  return (B.length res, Right res)
+{-# INLINE bytesBefore #-}
 
 -- | Slice the remaining bytes.
 remainingBytes :: Packer ByteString
-remainingBytes x = do
-  n <- getRemaining
-  simpleBS n id id x
+remainingBytes = simpleBS $ \bs ->
+  return (B.length bs, Right bs)
 {-# INLINE remainingBytes #-}
 
 -- | Similar to 'remainingBytes' but copy the remaining bytes.
@@ -62,26 +68,33 @@ remainingBytesCopy :: Packer ByteString
 remainingBytesCopy = fmap B.copy . remainingBytes
 {-# INLINE remainingBytesCopy #-}
 
----- | A strict 'ByteString' 'Packet'.
---cstring :: Packer ByteString
---cstring = bytesWhileWord8 0
---{-# INLINE cstring #-}
+-- | Variable-length NUL terminated string.
+cstring :: Packer ByteString
+cstring str = do
+  bs <- bytesBefore 0 str
+  i8 0
+  return bs
+{-# INLINE cstring #-}
 
--- | A strict 'ByteString' 'Packet'.
---varchar :: Int -> Packer ByteString
---varchar upperLimit = simpleBS upperLimit id id
---{-# INLINE varchar #-}
-
-simpleBS :: Int -> (ByteString -> a) -> (a -> ByteString) -> Packer a
-simpleBS n toHost fromHost a = asymmPacket get n put m
+-- | Fixed-length (possibly) NUL terminated string field.
+-- Longer string will be trimmed and shorter one will be padded out with NUL.
+varchar :: Int -> Packer ByteString
+varchar upperLimit value = flip simpleBS (pp value) $ \bs -> do
+  let field = B.take upperLimit bs
+  let str = fst $ B.break (== 0) field
+  return (B.length field, Right str)
   where
-    get (B.PS fp _ _) cur = do
-      let offset = cur `minusPtr` getPtr fp
-      return . toHost $ B.fromForeignPtr fp offset n
-    bs = fromHost a
+    pp v =
+      let b = B.take upperLimit v
+      in B.concat [b, B.replicate (upperLimit - B.length b) 0]
+{-# INLINE varchar #-}
+
+simpleBS :: (ByteString -> IO (Int, Either String ByteString)) -> Packer ByteString
+simpleBS get bs = asymmPacket get put size
+  where
+    size = B.length bs
     put cur = do
       top <- getTop bs
-      B.memcpy (castPtr cur) top (fromIntegral (B.length bs))
-    m = B.length bs
+      B.memcpy (castPtr cur) top (fromIntegral size)
 {-# INLINE simpleBS #-}
 
