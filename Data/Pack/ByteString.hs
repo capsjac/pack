@@ -12,7 +12,7 @@ module Data.Pack.ByteString
     bytes
   , bytesCopy
   , bytesWhile
-  , bytesBefore
+  , bytesUntil
   , cstring
   , varchar
   --, signature
@@ -52,14 +52,14 @@ bytesWhile pred = simpleBS $ \bs -> do
   return (B.length res, Right res)
 {-# INLINE bytesWhile #-}
 
--- | 'bytesBefore' slices remaining ByteString at the first occurence of the
+-- | 'bytesUntil' slices remaining ByteString at the first occurence of the
 -- specified byte. It is more efficient than 'bytesWhile' as it is implemented
 -- with memchr(3).
-bytesBefore :: Word8 -> Packer ByteString
-bytesBefore word = simpleBS $ \bs -> do
+bytesUntil :: Word8 -> Packer ByteString
+bytesUntil word = simpleBS $ \bs -> do
   let res = fst $ B.break (== word) bs
   return (B.length res, Right res)
-{-# INLINE bytesBefore #-}
+{-# INLINE bytesUntil #-}
 
 -- | Slice the remaining bytes.
 remainingBytes :: Packer ByteString
@@ -75,7 +75,7 @@ remainingBytesCopy = fmap B.copy . remainingBytes
 -- | Variable-length NUL terminated string.
 cstring :: Packer ByteString
 cstring str = do
-  bs <- bytesBefore 0 str
+  bs <- bytesUntil 0 str
   i8 0
   return bs
 {-# INLINE cstring #-}
