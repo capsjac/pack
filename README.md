@@ -10,7 +10,7 @@ Bidirectional fast ByteString packer/unpacker for Haskell
     ghci> packing i8 10
     "\n"
     ghci> unpacking i8 (BS.pack "\n")
-    Just 10
+    Right 10
 
 Stability: Experimental
 
