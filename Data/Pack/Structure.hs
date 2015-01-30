@@ -20,6 +20,7 @@ module Data.Pack.Structure
   --, isolate
   --, hole
   --, fillHole
+  --, readAhead
   ) where
 
 import Data.ByteString.Internal (ByteString(..))
@@ -41,16 +42,18 @@ vector packer n vec = Packet (get, size, put)
 
 -- | A "Data.Vector.Storable" 'Packet'. Read operation is copy-free.
 array :: Storable a => Int -> Packer (VS.Vector a)
-array len vec = asymmPacket get n put m
+array count vec = asymmPacket get put (V.length vec * sizeOfA)
   where
-    get (PS fptr _ _) cur = do
-      let fp = castForeignPtr fptr
-      let offset = cur `minusPtr` getPtr fp
-      return $ VS.unsafeFromForeignPtr fp offset len
-    n = len * sizeOf (V.head vec)
+    get (PS fptr offset len) = return (reqSize, result)
+      where
+        fp = castForeignPtr fptr
+        reqSize = count * sizeOfA
+        result = if reqSize <= len
+          then Right $ VS.unsafeFromForeignPtr fp offset count
+          else Left "not enough bytes to obtain array."
     put dstPtr = VS.unsafeWith vec $ \srcPtr ->
       copyArray (castPtr dstPtr) srcPtr (V.length vec)
-    m = V.length vec * sizeOf (V.head vec)
+    sizeOfA = sizeOf (V.head vec)
 {-# INLINE array #-}
 
 -- | Similar to 'array' but copy the bytes.
