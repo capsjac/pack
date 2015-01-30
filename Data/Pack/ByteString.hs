@@ -15,7 +15,7 @@ module Data.Pack.ByteString
   , bytesUntil
   , cstring
   , varchar
-  --, signature
+  , signature
   , remainingBytes
   , remainingBytesCopy
   ) where
@@ -93,21 +93,18 @@ varchar upperLimit value = flip simpleBS (pp value) $ \bs -> do
       in B.concat [b, B.replicate (upperLimit - B.length b) 0]
 {-# INLINE varchar #-}
 
----- | Constant block of packet. Similar to 'unused' but specified ByteString
+-- | Constant block of packet. Similar to 'unused' but specified ByteString
 -- will be used to fill out rather than NUL bytes. Additionally, read content
 -- is compared to the value and mismatch is reported.
---signature :: ByteString -> Packer (Maybe ByteString)
---signature upperLimit value = flip simpleBS (pp value) $ \bs -> do
---  let field = B.take upperLimit bs
---  let str = fst $ B.break (== 0) field
---  return (B.length field, Right str)
---  where
---    pp v =
---      let b = B.take upperLimit v
---      in B.concat [b, B.replicate (upperLimit - B.length b) 0]
---{-# INLINE signature #-}
+signature :: ByteString -> Packet String (Maybe ByteString)
+signature sig = flip simpleBS sig $ \bs -> return $
+  if B.isPrefixOf sig bs
+    then (B.length sig, Right Nothing)
+    else ( B.length (B.take (B.length sig) bs)
+         , Right $ Just (B.take (B.length sig) bs) )
+{-# INLINE signature #-}
 
-simpleBS :: (ByteString -> IO (Int, Either String ByteString)) -> Packer ByteString
+simpleBS :: (ByteString -> IO (Int, Either String a)) -> ByteString -> Packet String a
 simpleBS get bs = asymmPacket get put size
   where
     size = B.length bs
