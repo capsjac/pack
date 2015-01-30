@@ -29,7 +29,8 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Data.Pack
-  ( packing
+  ( -- * Main
+    packing
   , unpacking
   , packet
   , pactest
