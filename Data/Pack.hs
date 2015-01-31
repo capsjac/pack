@@ -29,7 +29,8 @@
 {-# LANGUAGE RankNTypes #-}
 
 module Data.Pack
-  ( -- * Main
+  (
+  -- * Main
     packing
   , unpacking
   , packet

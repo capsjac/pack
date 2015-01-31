@@ -7,7 +7,8 @@
 --
 
 module Data.Pack.Utils
-  ( -- * Information
+  (
+  -- * Information
     getPosition
   , getTotalSize
   , getRemaining

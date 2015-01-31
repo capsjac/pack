@@ -13,12 +13,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Data.Pack.IEEE754 (
-      wordToDouble
-    , wordToFloat
-    , doubleToWord
-    , floatToWord
-) where
+module Data.Pack.IEEE754
+  ( wordToDouble
+  , wordToFloat
+  , doubleToWord
+  , floatToWord
+  ) where
 
 import Control.Monad.ST (runST, ST)
 import Data.Array.ST (newArray, readArray, MArray, STUArray)
