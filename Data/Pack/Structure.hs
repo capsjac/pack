@@ -16,6 +16,7 @@ module Data.Pack.Structure
   --, extensible
   , enumOf
   --, bitfields :: Packet a -> (a -> b) -> Packet b
+  , dimapP
   , dicase
   --, isolate :: Packer a -> Packer a
   --, hole :: Packer a -> a -> Packet (Packet a)
