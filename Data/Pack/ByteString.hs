@@ -22,9 +22,9 @@ module Data.Pack.ByteString
 
 import Data.ByteString as B
 import qualified Data.ByteString.Internal as B
-import Data.Pack.Types
+import Data.Pack.Packet
 import Data.Pack.Primitives (i8)
-import Data.Pack.Space (getRemaining)
+import Data.Pack.Utils (getRemaining)
 import Data.Vector.Storable.Internal (getPtr)
 import Foreign
 

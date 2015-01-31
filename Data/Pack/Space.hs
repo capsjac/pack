@@ -13,22 +13,12 @@ module Data.Pack.Space
   , pad
   , alignedTo
   , alignedWith
-  --, skipWhile
-
-  -- * Information
-  , getPosition
-  , getTotalSize
-  , getRemaining
-  , isFull
-  --, sizeOfPacket
   ) where
 
-import Control.Applicative
-import Control.Monad
-import Data.ByteString
-import Data.Pack.Types
-import Data.Word
-import Foreign.Ptr
+import Control.Monad (replicateM_)
+import Data.Pack.Packet (Packet, simple)
+import Data.Pack.Utils (getPosition)
+import Data.Word (Word8)
 
 
 -- | Skip bytes, filling with NUL bytes.
@@ -55,35 +45,4 @@ alignedWith filler blockSize = do
 
 --aligned :: Int -> Int -> Int
 --aligned alignment n = (n + alignment - 1) .&. complement (alignment - 1)
-
--- | Get the position in the memory block.
-getPosition :: Packet e Int
-getPosition = mkInfoPacket $ \bs _ cur -> do
-  top <- getTop bs
-  return (cur, Right (cur `minusPtr` top))
-{-# INLINE getPosition #-}
-
--- | Get the total size of the memory block.
-getTotalSize :: Packet e Int
-getTotalSize = mkInfoPacket $ \bs bottom cur -> do
-  top <- getTop bs
-  return (cur, Right (bottom `minusPtr` top))
-{-# INLINE getTotalSize #-}
-
--- | Get a number of bytes to go in the memory block.
-getRemaining :: Packet e Int
-getRemaining = mkInfoPacket $ \_ bottom cur ->
-  return (cur, Right (bottom `minusPtr` cur))
-{-# INLINE getRemaining #-}
-
--- | Return True if source ByteString is fully consumed or target ByteString
--- is full.
-isFull :: Packet e Bool
-isFull = (== 0) <$> getRemaining
-{-# INLINE isFull #-}
-
-mkInfoPacket :: (ByteString -> Ptr () -> Ptr () -> IO (Ptr (), Either e a)) -> Packet e a
-mkInfoPacket f = Packet
-  (f, id, \_ _ p -> return p )
-{-# INLINE mkInfoPacket #-}
 

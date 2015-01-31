@@ -15,16 +15,15 @@ module Data.Pack.Structure
   , storable
   --, extensible
   , enumOf
-  --, bitfields
+  --, bitfields :: Packet a -> (a -> b) -> Packet b
   , dicase
-  --, isolate
-  --, hole
-  --, fillHole
-  --, readAhead
+  --, isolate :: Packer a -> Packer a
+  --, hole :: Packer a -> a -> Packet (Packet a)
+  --, readAhead :: Packer a -> Packer a
   ) where
 
 import Data.ByteString.Internal (ByteString(..))
-import Data.Pack.Types
+import Data.Pack.Packet
 import qualified Data.Vector.Generic as V
 import qualified Data.Vector.Storable as VS
 import Data.Vector.Storable.Internal (getPtr)

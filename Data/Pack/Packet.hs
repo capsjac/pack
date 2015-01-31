@@ -1,5 +1,5 @@
 -- |
--- Module      : Data.Pack.Types
+-- Module      : Data.Pack.Packet
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
@@ -8,7 +8,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections #-}
 
-module Data.Pack.Types where
+module Data.Pack.Packet where
 
 import Control.Applicative
 import Control.Monad.IO.Class

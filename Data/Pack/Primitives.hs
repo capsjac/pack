@@ -41,7 +41,7 @@ module Data.Pack.Primitives
 
 import Data.Pack.Endianness
 import Data.Pack.IEEE754
-import Data.Pack.Types
+import Data.Pack.Packet
 import Foreign
 
 

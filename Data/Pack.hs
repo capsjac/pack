@@ -40,16 +40,18 @@ module Data.Pack
   , module Data.Pack.ByteString
   , module Data.Pack.Structure
   , module Data.Pack.Space
+  , module Data.Pack.Utils
   ) where
 
 import Control.Lens
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Internal as B (ByteString(..), mallocByteString)
-import Data.Pack.Types
+import Data.Pack.Packet
 import Data.Pack.Primitives
 import Data.Pack.ByteString
 import Data.Pack.Structure
 import Data.Pack.Space
+import Data.Pack.Utils
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import System.IO.Unsafe

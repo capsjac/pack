@@ -26,11 +26,12 @@ library
   exposed-modules:     Data.Pack
                        Data.Pack.Endianness
                        Data.Pack.IEEE754
-                       Data.Pack.Types
+                       Data.Pack.Packet
   other-modules:       Data.Pack.ByteString
                        Data.Pack.Primitives
                        Data.Pack.Space
                        Data.Pack.Structure
+                       Data.Pack.Utils
   -- other-extensions:    
   build-depends:       base >=4 && <5, transformers >=0.3 && <0.4, bytestring >=0.10 && <0.11, array >=0.5 && <1, lens >=4, vector >=0.10 && <0.11
   -- hs-source-dirs:      
