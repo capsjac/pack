@@ -60,7 +60,7 @@ instance Monad (Packet e) where
   return = pure
   {-# INLINE return #-}
   Packet (mg, ms, mp) >>= f =
-    let Packet (_, size, set) = f undefined
+    let Packet (_, size, set) = f (error "packer cannot touch do-bindings")
     in Packet
     ( \t b p ->
       mg t b p >>= \(p', eg) ->

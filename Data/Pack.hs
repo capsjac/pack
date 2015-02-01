@@ -74,11 +74,11 @@ packing f v =
 -- | Unpack a 'ByteString' using a 'Packer'.
 unpacking :: (a -> Packet e a) -> ByteString -> Either e a
 unpacking f bs@(B.PS fp offset len) =
-  let Packet (get, size, _) = f (error "no touch")
+  let Packet (get, _, _) = f (error "unpacker cannot touch argument")
   in unsafePerformIO $
     withForeignPtr (castForeignPtr fp) $ \origPtr -> do
       let ptr = origPtr `plusPtr` offset
-      (p', v) <- get bs (plusPtr ptr (size 0)) ptr
+      (p', v) <- get bs (plusPtr ptr len) ptr
       return v
 {-# INLINE unpacking #-}
 
@@ -88,6 +88,7 @@ packet packer = prism' (packing packer)
   (either (const Nothing) Just . unpacking packer)
 
 -- | Readme.
+-- [Migration Guide from/to binary, cereal, packer]
 pactest :: IO ()
 pactest = do
   putStrLn . show $ packing i8 100
