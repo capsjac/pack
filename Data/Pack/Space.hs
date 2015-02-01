@@ -31,12 +31,12 @@ pad :: Word8 -> Int -> Packet String ()
 pad filler n = replicateM_ n (simple 1 id id filler) -- XXX make this faster
 {-# INLINE pad #-}
 
--- | Adjust alignment, filling with NUL bytes.
+-- | (Unpacker only) Adjust alignment, filling with NUL bytes.
 alignedTo :: Int -> Packet String ()
 alignedTo = alignedWith 0
 {-# INLINE alignedTo #-}
 
--- | Adjust alignment, filling with specified byte.
+-- | (Unpacker only) Adjust alignment, filling with specified byte.
 alignedWith :: Word8 -> Int -> Packet String ()
 alignedWith filler blockSize = do
   pos <- getPosition
