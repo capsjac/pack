@@ -3,7 +3,7 @@
 -- License     : BSD-style
 -- Maintainer  : capsjac <capsjac at gmail dot com>
 -- Stability   : Experimental
--- Portability : Unknown
+-- Portability : GHC, Unknown
 --
 -- The pack package provides bidirectional packing and unpacking (aka.
 -- (de)serialise) Haskell values to and from strict 'ByteString's.
