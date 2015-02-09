@@ -5,9 +5,35 @@
 -- Stability   : Experimental
 -- Portability : Unknown
 --
--- Bidirectional packing module.
+-- The pack package provides bidirectional packing and unpacking (aka.
+-- (de)serialise) Haskell values to and from strict 'ByteString's.
+-- Both operations are faster than binary and cereal package so that it can be
+-- used in performance sensible operations. Bytestring allocation is batched and
+-- done before packing any values to avoid performance loss. The pack package
+-- does not provide specific typeclasses (it's a good idea, though) to clear out
+-- ambiguity of serialisation format.
 -- 
--- Usage:
+-- * Migration Sheet from binary, cereal and packer
+-- 
+-- [@encode, runPacking@] 'packing' (packer).
+-- 
+-- [@decode, runUnpacking@] 'unpacking' (packer).
+-- 
+-- [@getWord8, putWord8@] 'i8' (put value) and 'u8' (put value).
+-- 
+-- [@getWord*, putWord*@] {i,u}{8,16,32,64}{,b,host} (put value).
+-- 
+-- [@skip@] 'unused', or 'pad'.
+-- 
+-- [@isEmpty, bytesRead@] 'isFull' and 'getPosition'.
+-- 
+-- [@getByteString@] 'bytes'.
+-- 
+-- [@getLazyByteStringNul@] 'cstring'.
+-- 
+-- [@getWordhost@] 'uptrsize' and 'iptrsize'.
+-- 
+-- * Example
 -- 
 -- > pactest = do
 -- >   putStrLn . show $ packing i8 100
@@ -20,7 +46,7 @@
 -- >   putStrLn . show $ packing i8i8i8 (-90,-80,100)
 -- >   putStrLn . show $ unpacking i8i8i8 $ packing i8i8i8 (-90,-80,100)
 -- 
--- Output:
+-- * Output
 -- 
 -- > "d"
 -- > "\166\176d"
@@ -88,7 +114,6 @@ packet packer = prism' (packing packer)
   (either (const Nothing) Just . unpacking packer)
 
 -- | Readme.
--- [Migration Guide from/to binary, cereal, packer]
 pactest :: IO ()
 pactest = do
   putStrLn . show $ packing i8 100

@@ -17,6 +17,12 @@ module Data.Pack.Primitives
   , u16
   , u32
   , u64
+  , i16b
+  , i32b
+  , i64b
+  , u16b
+  , u32b
+  , u64b
   , i16host
   , i32host
   , i64host
@@ -25,18 +31,12 @@ module Data.Pack.Primitives
   , u32host
   , u64host
   , uptrsize
-  , i16be
-  , i32be
-  , i64be
-  , u16be
-  , u32be
-  , u64be
   , f32
   , f64
+  , f32b
+  , f64b
   , f32host
   , f64host
-  , f32be
-  , f64be
   ) where
 
 import Data.Pack.Endianness
@@ -61,9 +61,9 @@ i16host = simple 2 id id
 {-# INLINE i16host #-}
 
 -- | A 'Int16' 'Packet' serialized in big endian.
-i16be :: Packer Int16
-i16be = simple 2 (fromIntegral . be16Host) (be16Host . fromIntegral)
-{-# INLINE i16be #-}
+i16b :: Packer Int16
+i16b = simple 2 (fromIntegral . be16Host) (be16Host . fromIntegral)
+{-# INLINE i16b #-}
 
 -- | A 'Int32' 'Packet' serialized in little endian.
 i32 :: Packer Int32
@@ -76,9 +76,9 @@ i32host = simple 4 id id
 {-# INLINE i32host #-}
 
 -- | A 'Int32' 'Packet' serialized in big endian.
-i32be :: Packer Int32
-i32be = simple 4 (fromIntegral . be32Host) (be32Host . fromIntegral)
-{-# INLINE i32be #-}
+i32b :: Packer Int32
+i32b = simple 4 (fromIntegral . be32Host) (be32Host . fromIntegral)
+{-# INLINE i32b #-}
 
 -- | A 'Int64' 'Packet' serialized in little endian.
 i64 :: Packer Int64
@@ -91,9 +91,9 @@ i64host = simple 8 id id
 {-# INLINE i64host #-}
 
 -- | A 'Int64' 'Packet' serialized in big endian.
-i64be :: Packer Int64
-i64be = simple 8 (fromIntegral . be64Host) (be64Host . fromIntegral)
-{-# INLINE i64be #-}
+i64b :: Packer Int64
+i64b = simple 8 (fromIntegral . be64Host) (be64Host . fromIntegral)
+{-# INLINE i64b #-}
 
 -- | A host pointer-sized 'Int' 'Packet' in the host endianness.
 iptrsize :: Packer Word
@@ -116,9 +116,9 @@ u16host = simple 2 id id
 {-# INLINE u16host #-}
 
 -- | A 'Word16' 'Packet' serialized in big endian.
-u16be :: Packer Word16
-u16be = simple 2 be16Host be16Host
-{-# INLINE u16be #-}
+u16b :: Packer Word16
+u16b = simple 2 be16Host be16Host
+{-# INLINE u16b #-}
 
 -- | A 'Word32' 'Packet' serialized in little endian.
 u32 :: Packer Word32
@@ -131,9 +131,9 @@ u32host = simple 4 id id
 {-# INLINE u32host #-}
 
 -- | A 'Word32' 'Packet' serialized in big endian.
-u32be :: Packer Word32
-u32be = simple 4 be32Host be32Host
-{-# INLINE u32be #-}
+u32b :: Packer Word32
+u32b = simple 4 be32Host be32Host
+{-# INLINE u32b #-}
 
 -- | A 'Word64' 'Packet' serialized in little endian.
 u64 :: Packer Word64
@@ -146,9 +146,9 @@ u64host = simple 8 id id
 {-# INLINE u64host #-}
 
 -- | A 'Word64' 'Packet' serialized in big endian.
-u64be :: Packer Word64
-u64be = simple 8 be64Host be64Host
-{-# INLINE u64be #-}
+u64b :: Packer Word64
+u64b = simple 8 be64Host be64Host
+{-# INLINE u64b #-}
 
 -- | A host pointer-sized 'Word' 'Packet' in the host endianness.
 uptrsize :: Packer Word
@@ -176,12 +176,12 @@ f64host = simple 8 wordToDouble doubleToWord
 {-# INLINE f64host #-}
 
 -- | A IEEE754-'Float' 'Packet' serialized in big endian.
-f32be :: Packer Float
-f32be = simple 4 (wordToFloat.be32Host) (be32Host.floatToWord)
-{-# INLINE f32be #-}
+f32b :: Packer Float
+f32b = simple 4 (wordToFloat.be32Host) (be32Host.floatToWord)
+{-# INLINE f32b #-}
 
 -- | A IEEE754-'Double' 'Packet' serialized in big endian.
-f64be :: Packer Double
-f64be = simple 8 (wordToDouble.be64Host) (be64Host.doubleToWord)
-{-# INLINE f64be #-}
+f64b :: Packer Double
+f64b = simple 8 (wordToDouble.be64Host) (be64Host.doubleToWord)
+{-# INLINE f64b #-}
 
