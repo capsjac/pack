@@ -33,23 +33,23 @@ import Foreign
 
 -- | A "Data.Vector.Generic" 'Packet'. Get and put an array of arbitary
 -- type of 'Packet's.
-vector :: V.Vector v a => Packer a -> Int -> Packer (v a)
+vector :: (V.Vector v a, Num n) => Packer a -> n -> Packer (v a)
 vector packer n vec = Packet (get, size, put)
   where
-    Packet (get, _, _) = V.replicateM n (packer undefined)
+    Packet (get, _, _) = V.replicateM (fromIntegral n) (packer undefined)
     Packet (_, size, put) = V.mapM packer vec
 {-# INLINE vector #-}
 
 -- | A "Data.Vector.Storable" 'Packet'. Read operation is copy-free.
-array :: Storable a => Int -> Packer (VS.Vector a)
+array :: (Storable a, Num n) => n -> Packer (VS.Vector a)
 array count vec = asymmPacket get put (V.length vec * sizeOfA)
   where
     get (PS fptr offset len) = return (reqSize, result)
       where
         fp = castForeignPtr fptr
-        reqSize = count * sizeOfA
+        reqSize = (fromIntegral count) * sizeOfA
         result = if reqSize <= len
-          then Right $ VS.unsafeFromForeignPtr fp offset count
+          then Right $ VS.unsafeFromForeignPtr fp offset (fromIntegral count)
           else Left "not enough bytes to obtain array."
     put dstPtr = VS.unsafeWith vec $ \srcPtr ->
       copyArray (castPtr dstPtr) srcPtr (V.length vec)
@@ -57,12 +57,12 @@ array count vec = asymmPacket get put (V.length vec * sizeOfA)
 {-# INLINE array #-}
 
 -- | Similar to 'array' but copy the bytes.
-arrayCopy :: Storable a => Int -> Packer (VS.Vector a)
+arrayCopy :: (Storable a, Num n) => n -> Packer (VS.Vector a)
 arrayCopy n = fmap VS.force . array n
 {-# INLINE arrayCopy #-}
 
--- | A 'Storable' 'Packet'. Note that 'Storable' must not be used to
--- store variable sized structures.
+-- | A 'Storable' 'Packet'.
+-- Note that 'Storable' must not be used to store variable sized structures.
 storable :: Storable a => Packer a
 storable a = simple (sizeOf a) id id a
 {-# INLINE storable #-}
@@ -87,4 +87,10 @@ dicase getcase@(Packet (get, _, _))
        putcase@(Packet (_, size, put)) =
   Packet (get, size, put)
 {-# INLINE dicase #-}
+
+--  | peek/poke helpers for writing 'Storable' instances.
+-- Note that 'Storable' must not be used to store variable sized structures.
+-- peekPacket :: Packer a -> Ptr a -> IO a
+-- pokePacket :: Packer a -> Ptr a -> a -> IO ()
+-- isFull->isEmpty, diif, direturn, bimonad, birif, rif, lif to bifunctors
 

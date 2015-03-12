@@ -32,16 +32,16 @@ import Foreign
 -- | Slice a number of bytes from the source 'ByteString'.
 -- The original block of memory is expected to live for the life of this
 -- ByteString.
-bytes :: Int -> Packer ByteString
+bytes :: Num a => a -> Packer ByteString
 bytes n = simpleBS $ \bs -> do
-  let res = B.take n bs
+  let res = B.take (fromIntegral n) bs
   return (B.length res, Right res)
 {-# INLINE bytes #-}
 
 -- | Copy a number of bytes from the source 'ByteString'.
 -- Similar to 'bytes' but this allow the original block of memory to go away.
-bytesCopy :: Int -> Packer ByteString
-bytesCopy n = fmap B.copy . bytes n
+bytesCopy :: Num a => a -> Packer ByteString
+bytesCopy n = fmap B.copy . bytes (fromIntegral n)
 {-# INLINE bytesCopy #-}
 
 -- | 'bytesWhile', applied to a predicate p, returns the longest prefix
@@ -82,15 +82,15 @@ cstring str = do
 
 -- | Fixed-length (possibly) NUL terminated string field.
 -- Longer string will be trimmed and shorter one will be padded out with NUL.
-varchar :: Int -> Packer ByteString
+varchar :: Num a => a -> Packer ByteString
 varchar upperLimit value = flip simpleBS (pp value) $ \bs -> do
-  let field = B.take upperLimit bs
+  let field = B.take (fromIntegral upperLimit) bs
   let str = fst $ B.break (== 0) field
   return (B.length field, Right str)
   where
     pp v =
-      let b = B.take upperLimit v
-      in B.concat [b, B.replicate (upperLimit - B.length b) 0]
+      let b = B.take (fromIntegral upperLimit) v
+      in B.concat [b, B.replicate (fromIntegral upperLimit - B.length b) 0]
 {-# INLINE varchar #-}
 
 -- | Constant block of packet. Similar to 'unused' but specified ByteString
