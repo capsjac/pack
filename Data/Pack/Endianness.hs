@@ -8,7 +8,10 @@
 {-# LANGUAGE CPP #-}
 
 module Data.Pack.Endianness
-  ( le16Host
+  ( swap16
+  , swap32
+  , swap64
+  , le16Host
   , le32Host
   , le64Host
   , be16Host
@@ -18,6 +21,7 @@ module Data.Pack.Endianness
 
 import Data.Bits
 import Data.Word
+
 
 #if MIN_VERSION_base(4,7,0)
 -- | Swap endianness on a Word16.
