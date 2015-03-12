@@ -32,7 +32,7 @@ import Foreign
 -- | Slice a number of bytes from the source 'ByteString'.
 -- The original block of memory is expected to live for the life of this
 -- ByteString.
-bytes :: Num a => a -> Packer ByteString
+bytes :: Integral a => a -> Packer ByteString
 bytes n = simpleBS $ \bs -> do
   let res = B.take (fromIntegral n) bs
   return (B.length res, Right res)
@@ -40,7 +40,7 @@ bytes n = simpleBS $ \bs -> do
 
 -- | Copy a number of bytes from the source 'ByteString'.
 -- Similar to 'bytes' but this allow the original block of memory to go away.
-bytesCopy :: Num a => a -> Packer ByteString
+bytesCopy :: Integral a => a -> Packer ByteString
 bytesCopy n = fmap B.copy . bytes (fromIntegral n)
 {-# INLINE bytesCopy #-}
 
@@ -82,7 +82,7 @@ cstring str = do
 
 -- | Fixed-length (possibly) NUL terminated string field.
 -- Longer string will be trimmed and shorter one will be padded out with NUL.
-varchar :: Num a => a -> Packer ByteString
+varchar :: Integral a => a -> Packer ByteString
 varchar upperLimit value = flip simpleBS (pp value) $ \bs -> do
   let field = B.take (fromIntegral upperLimit) bs
   let str = fst $ B.break (== 0) field

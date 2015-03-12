@@ -33,7 +33,7 @@ import Foreign
 
 -- | A "Data.Vector.Generic" 'Packet'. Get and put an array of arbitary
 -- type of 'Packet's.
-vector :: (V.Vector v a, Num n) => Packer a -> n -> Packer (v a)
+vector :: (V.Vector v a, Integral n) => Packer a -> n -> Packer (v a)
 vector packer n vec = Packet (get, size, put)
   where
     Packet (get, _, _) = V.replicateM (fromIntegral n) (packer undefined)
@@ -41,7 +41,7 @@ vector packer n vec = Packet (get, size, put)
 {-# INLINE vector #-}
 
 -- | A "Data.Vector.Storable" 'Packet'. Read operation is copy-free.
-array :: (Storable a, Num n) => n -> Packer (VS.Vector a)
+array :: (Storable a, Integral n) => n -> Packer (VS.Vector a)
 array count vec = asymmPacket get put (V.length vec * sizeOfA)
   where
     get (PS fptr offset len) = return (reqSize, result)
@@ -57,7 +57,7 @@ array count vec = asymmPacket get put (V.length vec * sizeOfA)
 {-# INLINE array #-}
 
 -- | Similar to 'array' but copy the bytes.
-arrayCopy :: (Storable a, Num n) => n -> Packer (VS.Vector a)
+arrayCopy :: (Storable a, Integral n) => n -> Packer (VS.Vector a)
 arrayCopy n = fmap VS.force . array n
 {-# INLINE arrayCopy #-}
 
