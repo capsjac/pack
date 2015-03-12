@@ -2,7 +2,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                pack
-version:             0.4.0
+version:             0.5.0
 synopsis:            Bidirectional fast ByteString packer/unpacker
 description:         Serializer and deserializer are unified in this way.
                      This package is suitable for parsing small data packets
